@@ -7,34 +7,49 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Wallet, ArrowUpRight, ArrowDownLeft, Plus, LogOut, User, ArrowRightLeft, TrendingUp, } from "lucide-react";
 
+interface Transaction {
+  id: number;
+  name: string;
+  type: string;
+  amount: number;
+  created_at: string;
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [userMetadata, setUserMetadata] = useState<{ first_name?: string; last_name?: string } | null>(null);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const balance = 5400.00;
-  
-  const recentTransactions = [
-    { id: 1, name: "Kiraly Llanda", type: "send", amount: 1500.00, date: "Today, 2:30 PM" },
-    { id: 2, name: "Maryanne Pablo", type: "receive", amount: 3000.00, date: "Yesterday, 10:15 AM" },
-    { id: 3, name: "Yami Sukehiro", type: "send", amount: 450.00, date: "June 19, 4:20 PM" },
-    { id: 4, name: "John Doe", type: "send", amount: 1500.00, date: "Today, 2:30 PM" },
-    { id: 5, name: "Jane Smith", type: "receive", amount: 3000.00, date: "Yesterday, 10:15 AM" },
-    { id: 6, name: "Anonymous User", type: "send", amount: 450.00, date: "June 19, 4:20 PM" },
-  ];
 
   useEffect(() => {
-    const checkUser = async () => {
+    const checkUserAndFetchData = async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
 
       if (error || !user) {
-        toast.error("You must be logged in to access the dashboard.");
+        toast.error("Session expired or you are not logged in. Please log in again.");
         router.push("/login");
-      } else {
-        setUserMetadata(user.user_metadata as { first_name?: string; last_name?: string });
-        setLoading(false);
+        return;
       }
+
+      setUserMetadata(user.user_metadata as { first_name?: string; last_name?: string } | null);
+
+      const { data: transactionsData, error: dbError } = await supabase
+        .from("transactions")
+        .select("id, name, type, amount, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+
+      if (dbError) {
+        toast.error("Failed to load transactions.");
+        console.error(dbError.message);
+      } else if (transactionsData) {
+        setRecentTransactions(transactionsData);
+      }
+
+      setLoading(false);
     };
-    checkUser();
+    checkUserAndFetchData();
   }, [router]);
 
   // Handle Logout Function
@@ -97,11 +112,25 @@ export default function Dashboard() {
             Current Balance
           </p>
           <h1 className="text-3xl font-black tracking-tight mb-6">
-            ₱{balance.toLocaleString("en-Ph", {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+            ₱{balance.toLocaleString("en-Ph", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h1>
           <p className="text-sm text-indigo-200/90">
             Your available balance across all accounts
           </p>
+        </div>
+
+        {/* QUICK ACTIONS */}
+        <div className="grid grid-cols-2 gap-3 mt-6">
+          <Button
+          onClick={() => router.push("/dashboard/send")}
+          className=" bg-gradient-to-br from-indigo-600 to-indigo-800 hover:bg-white/20 active:scale-98 transition-all py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer backdrop-blur-sm text-white">
+            <ArrowUpRight className="h-4 w-4 text-indigo-200" /> Send Money
+          </Button>
+          <Button
+          onClick={() => router.push("/dashboard/recieve")}
+          className="bg-white text-indigo-700 hover:bg-neutral-50 active:scale-98 transition-all py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm">
+            <ArrowDownLeft className="h-4 w-4" /> Receive
+          </Button>
         </div>
 
         {/* RECENT TRANSACTIONS SECTION */}
@@ -115,24 +144,27 @@ export default function Dashboard() {
 
           <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:none [-ms-overflow-style:none] [scrollbar-width:none]">
             {recentTransactions.map((tx) => (
-              <div 
-                key={tx.id} 
+              <div
+                key={tx.id}
                 className="bg-white border border-neutral-200/60 p-4 rounded-2xl flex items-center justify-between shadow-sm shadow-neutral-100/50"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${
-                    tx.type === "receive" ? "bg-emerald-50 text-emerald-600" : "bg-neutral-50 text-neutral-600"
-                  }`}>
+                  <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${tx.type === "receive" ? "bg-emerald-50 text-emerald-600" : "bg-neutral-50 text-neutral-600"
+                    }`}>
                     {tx.type === "receive" ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                   </div>
                   <div>
                     <p className="text-xs font-bold text-neutral-800">{tx.name}</p>
-                    <p className="text-[10px] text-neutral-400 font-medium">{tx.date}</p>
+                    <p className="text-[10px] text-neutral-400 font-medium">{new Date(tx.created_at).toLocaleDateString("en-PH", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      })}</p>
                   </div>
                 </div>
-                <p className={`text-xs font-bold ${
-                  tx.type === "receive" ? "text-emerald-600" : "text-neutral-800"
-                }`}>
+                <p className={`text-xs font-bold ${tx.type === "receive" ? "text-emerald-600" : "text-neutral-800"
+                  }`}>
                   {tx.type === "receive" ? "+" : "-"} ₱{tx.amount.toFixed(2)}
                 </p>
               </div>
