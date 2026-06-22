@@ -150,7 +150,7 @@ export default function Register() {
 
             <Button
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-6 rounded-xl transition-all active:scale-98 mt-2 shadow-md shadow-indigo-600/10 cursor-pointer"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-6 rounded-full transition-all active:scale-98 mt-2 shadow-md shadow-indigo-600/10 cursor-pointer"
             >
               Get Started
             </Button>

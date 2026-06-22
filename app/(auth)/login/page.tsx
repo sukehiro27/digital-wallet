@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -37,6 +37,22 @@ export default function Login() {
       router.push("/dashboard");
     }, 2000);
   }
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        router.push("/login");
+      } else {
+        toast.success("You are already logged in. Redirecting to dashboard...");
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 1200);
+      }
+    }
+    checkUser();
+  }, [router]);
 
   return (
     <main className="min-h-screen bg-neutral-50 text-neutral-900 flex items-center justify-center p-6 w-full">
